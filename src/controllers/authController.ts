@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+
+import { PrismaClient } from '../generated/prisma';
 
 import { Role, signToken, verifyToken } from '../utils/jwt';
 
@@ -11,7 +13,8 @@ export const register = async (req: Request, res: Response) => {
   const { email, password, name, role } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ msg: 'Email and password required' });
+    res.status(400).json({ msg: 'Email and password required' });
+    return;
   }
 
   try {
@@ -21,13 +24,19 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.usersAuth.create({
-      data: { email, password: hashedPassword, name, role: userRole },
+    const user = await prisma.auth_users.create({
+      data: {
+        id: uuidv4(),
+        email,
+        password: hashedPassword,
+        name,
+        role: userRole,
+      },
     });
 
-    return res.status(201).json({ msg: 'User created', userId: user.id });
+    res.status(201).json({ msg: 'User created', userId: user.id });
   } catch (error: any) {
-    return res.status(500).json({ msg: error.message });
+    res.status(500).json({ msg: error.message });
   }
 };
 
@@ -35,18 +44,23 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ msg: 'Email and password required' });
+    res.status(400).json({ msg: 'Email and password required' });
+    return;
   }
 
   try {
-    const user = await prisma.usersAuth.findUnique({ where: { email } });
+    const user = await prisma.auth_users.findUnique({ where: { email } });
 
-    if (!user) return res.status(401).json({ msg: 'Invalid credentials' });
+    if (!user) {
+      res.status(401).json({ msg: 'Invalid credentials' });
+      return;
+    }
 
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
-      return res.status(401).json({ msg: 'Invalid credentials' });
+      res.status(401).json({ msg: 'Invalid credentials' });
+      return;
     }
 
     const token = signToken({
@@ -55,26 +69,37 @@ export const login = async (req: Request, res: Response) => {
       role: user.role,
     });
 
-    return res.json({ token });
+    res.json({ token });
   } catch (error: any) {
-    return res.status(500).json({ msg: error.message });
+    res.status(500).json({ msg: error.message });
   }
 };
 
 export const verify = async (req: Request, res: Response) => {
   const { token } = req.body;
 
-  if (!token) return res.status(400).json({ msg: 'Token required' });
+  if (!token) {
+    res.status(400).json({ msg: 'Token required' });
+    return;
+  }
 
   const payload = verifyToken(token);
 
-  if (!payload) return res.status(401).json({ valid: false });
+  if (!payload) {
+    res.status(401).json({ valid: false });
+    return;
+  }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  const user = await prisma.auth_users.findUnique({
+    where: { id: payload.userId },
+  });
 
-  if (!user) return res.status(401).json({ valid: false });
+  if (!user) {
+    res.status(401).json({ valid: false });
+    return;
+  }
 
-  return res.json({
+  res.json({
     valid: true,
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
   });

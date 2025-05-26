@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "dev": "tsnd --respawn ./src/server.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -16,7 +17,8 @@
     "cors": "2.8.5",
     "dotenv": "16.5.0",
     "express": "5.1.0",
-    "jsonwebtoken": "9.0.2"
+    "jsonwebtoken": "9.0.2",
+    "uuid": "11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "9.27.0",
