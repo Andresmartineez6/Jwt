@@ -3,11 +3,13 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 import { Role, signToken, verifyToken } from '../utils/jwt';
 
-const prisma = new PrismaClient();
+
+const prisma=new PrismaClient();
+
 
 export const register = async (req: Request, res: Response) => {
   const { email, password, name, role } = req.body;
@@ -39,6 +41,9 @@ export const register = async (req: Request, res: Response) => {
     res.status(500).json({ msg: error.message });
   }
 };
+
+
+
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -75,6 +80,8 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+
+
 export const verify = async (req: Request, res: Response) => {
   const { token } = req.body;
 
@@ -103,4 +110,53 @@ export const verify = async (req: Request, res: Response) => {
     valid: true,
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
   });
+
+
+};
+
+
+
+
+export const update = async (req: Request, res: Response) => {
+  
+  const {id} = req.params;
+  const {email, password, name, role } = req.body;
+
+  try{
+
+    const user = await prisma.auth_users.findUnique({ where: { id } });
+
+
+    if (!user) {
+      res.status(404).json({ msg: 'User not found' });
+      return;
+    }
+
+    const dataToUpdate: any = {};
+
+    if (email) dataToUpdate.email = email;
+    if (name) dataToUpdate.name = name;
+    if (role && ['USER', 'ADMIN'].includes(role)) dataToUpdate.role = role;
+    if (password) dataToUpdate.password = await bcrypt.hash(password, 10);
+
+    const updatedUser = await prisma.auth_users.update({
+      where: {id},
+      data: dataToUpdate,
+    });
+
+    res.json({
+      msg:'User updated',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+      },
+
+    });
+
+  }catch(error:any){
+    res.status(500).json({ msg: error.message });
+  }
+
 };
